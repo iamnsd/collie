@@ -138,7 +138,7 @@ const SETUP_USAGE = [
   "                        [--url <base>] [--model <name>] [--key <api-key>]",
   "                        [--lang <iso-639-1>]                                (openai-compatible)",
   "                        [--codex-bin <path>] [--accept-risk]                (codex)",
-  "                        [--command <path>] [--args <list>]                  (local-cli)",
+  "                        [--command <path>] [--args <list>] [--input wav-16k]  (local-cli)",
 ];
 
 /**
@@ -490,6 +490,22 @@ async function setupLocalCli(
     return null;
   }
 
+  const rawInput = await ask(deps, flags.input, {
+    lead: [
+      "What the phone uploads: the recording as it is (the default), or `wav-16k` for a command that",
+      "reads a 16 kHz mono WAV only — the phone then converts its recording before sending it.",
+    ],
+    question: "input [all containers]: ",
+    missing: "the input — `collie stt setup --input wav-16k` (omit it to take the recordings as they are)",
+    optional: true,
+  });
+  if (rawInput === null) return null;
+  const input = rawInput === "" ? undefined : rawInput.trim();
+  if (input !== undefined && input !== "wav-16k") {
+    deps.io.err('error: --input must be "wav-16k", or omitted. Nothing was written.');
+    return null;
+  }
+
   deps.io.out("");
   deps.io.out("  Collie will run this as the bridge's own user, once per dictation:");
   deps.io.out(`    ${[command, ...args].join(" ")} <recording>`);
@@ -497,6 +513,7 @@ async function setupLocalCli(
   const document: RawSettings = { provider: "local-cli", command };
   // Absent rather than `[]`, the same rule as every other optional field in this file.
   if (args.length > 0) document.args = args;
+  if (input !== undefined) document.input = "wav-16k";
   return document;
 }
 

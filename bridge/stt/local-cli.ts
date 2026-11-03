@@ -155,6 +155,12 @@ export function createLocalCliSttProvider(
     id: settings.provider,
 
     /**
+     * What the phone must upload. `wav-16k` is what a WAV-only command needs: the phone converts
+     * its recording to a 16 kHz mono WAV before sending it, exactly as it does for `whistle`.
+     */
+    input: settings.input,
+
+    /**
      * Whether the command is there to run: a regular, executable file (see {@link commandFileProblem}).
      * One `stat` and one `access`, or one PATH walk first, which is the cost of the mtime check the
      * gate already pays per poll. The reason names no path and no cause: it is shown on the phone.
