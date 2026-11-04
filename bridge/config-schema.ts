@@ -957,6 +957,14 @@ export const CONFIG_SETTINGS: readonly ConfigSetting[] = [
     default: "",
     doc: "The command the local-cli provider runs, an absolute path or a name on PATH.",
   },
+  {
+    key: "stt_input",
+    env: "COLLIE_STT_INPUT",
+    section: "stt",
+    kind: "string",
+    default: "",
+    doc: "What the phone uploads to local-cli: empty takes recordings as they are, wav-16k converts them to 16 kHz WAV first.",
+  },
 ];
 
 /** Every environment name the table answers to, aliases included. Built once. */
