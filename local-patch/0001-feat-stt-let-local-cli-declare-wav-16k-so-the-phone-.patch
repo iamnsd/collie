@@ -1,0 +1,179 @@
+From cbd8ea02d79e92d13902d8d7744394f2ccdca6cb Mon Sep 17 00:00:00 2001
+From: Collie Fork <collie-fork@localhost>
+Date: Tue, 3 Nov 2026 12:19:11 +0500
+Subject: [PATCH 1/2] feat(stt): let local-cli declare wav-16k so the phone
+ converts the recording
+
+---
+ bridge/stt/config.ts    | 29 +++++++++++++++++++++++++++--
+ bridge/stt/local-cli.ts |  6 ++++++
+ cli/stt.ts              | 19 ++++++++++++++++++-
+ 3 files changed, 51 insertions(+), 3 deletions(-)
+
+diff --git a/bridge/stt/config.ts b/bridge/stt/config.ts
+index c447063..bcd7b35 100644
+--- a/bridge/stt/config.ts
++++ b/bridge/stt/config.ts
+@@ -130,6 +130,13 @@ export interface LocalCliSttSettings {
+   command: string;
+   /** The arguments before the recording's path. Empty when the command takes the path alone. */
+   args: string[];
++  /**
++   * What the phone must upload. `wav-16k` makes the phone convert its recording to a 16 kHz mono
++   * WAV before it sends it — what a command that reads WAV only (`whisper-cli`) needs, and the
++   * declaration the `whistle` provider already carries. Absent, the default, means the command
++   * takes the containers a phone records (webm/opus, mp4/AAC) as they are.
++   */
++  input?: "wav-16k";
+ }
+ 
+ /**
+@@ -154,6 +161,7 @@ export const STT_ENV_KEYS = {
+   codexBin: "COLLIE_CODEX_BIN",
+   wireIdentity: "COLLIE_STT_WIRE_IDENTITY",
+   command: "COLLIE_STT_COMMAND",
++  input: "COLLIE_STT_INPUT",
+ } as const;
+ 
+ /** The path `stt.json` sits at, given the bridge's state dir. */
+@@ -177,6 +185,7 @@ interface RawSettings {
+   codexBin?: string;
+   wireIdentity?: string;
+   command?: string;
++  input?: string;
+   /**
+    * The `local-cli` arguments. `null` means PRESENT BUT UNREADABLE — not an array, or an array
+    * holding something other than strings — which the resolve refuses rather than reads as "no
+@@ -224,6 +233,7 @@ export function coerceSttFile(raw: JsonValue | undefined): RawSettings {
+     codexBin: optionalString(o.codexBin),
+     wireIdentity: optionalString(o.wireIdentity),
+     command: optionalString(o.command),
++    input: optionalString(o.input),
+     args: argList(o.args),
+   };
+ }
+@@ -239,6 +249,7 @@ export function sttEnvSettings(env: Record<string, string | undefined>): RawSett
+     codexBin: optionalString(env[STT_ENV_KEYS.codexBin]),
+     wireIdentity: optionalString(env[STT_ENV_KEYS.wireIdentity]),
+     command: optionalString(env[STT_ENV_KEYS.command]),
++    input: optionalString(env[STT_ENV_KEYS.input]),
+   };
+ }
+ 
+@@ -296,6 +307,7 @@ export function resolveSttSettings(
+   const codexBin = env.codexBin ?? file.codexBin;
+   const wireIdentity = env.wireIdentity ?? file.wireIdentity;
+   const command = env.command ?? file.command;
++  const input = env.input ?? file.input;
+   // File only: the environment has no spelling of a list (see RawSettings.args).
+   const args = file.args;
+ 
+@@ -309,6 +321,7 @@ export function resolveSttSettings(
+     codexBin === undefined &&
+     wireIdentity === undefined &&
+     command === undefined &&
++    input === undefined &&
+     args === undefined
+   ) {
+     return null;
+@@ -318,7 +331,7 @@ export function resolveSttSettings(
+     return null;
+   }
+   if (provider === "codex") return resolveCodex(codexBin, wireIdentity, warn);
+-  if (provider === "local-cli") return resolveLocalCli(command, args, warn);
++  if (provider === "local-cli") return resolveLocalCli(command, args, input, warn);
+   if (provider === "whistle") return { provider: "whistle" };
+   if (baseUrl === undefined) {
+     warn(`speech-to-text is off: no endpoint configured (set ${STT_ENV_KEYS.url} or "baseUrl" in ${STT_FILENAME})`);
+@@ -418,6 +431,7 @@ const hasNul = (value: string): boolean => value.includes("\0");
+ function resolveLocalCli(
+   command: string | undefined,
+   args: string[] | null | undefined,
++  input: string | undefined,
+   warn: (message: string) => void,
+ ): LocalCliSttSettings | null {
+   if (command === undefined) {
+@@ -445,7 +459,18 @@ function resolveLocalCli(
+     );
+     return null;
+   }
+-  return { provider: "local-cli", command, args: [...list] };
++  // Refused rather than dropped, like a bad language: `wav-16k` changes what the phone SENDS, and a
++  // value Collie does not know would leave the command failing on containers nobody converts.
++  if (input !== undefined && input !== "wav-16k") {
++    warn(
++      `speech-to-text is off: the local-cli "input" must be "wav-16k" ` +
++        `(${STT_ENV_KEYS.input} / "input"), or unset for the recordings as they are`,
++    );
++    return null;
++  }
++  const settings: LocalCliSttSettings = { provider: "local-cli", command, args: [...list] };
++  if (input !== undefined) settings.input = "wav-16k";
++  return settings;
+ }
+ 
+ /**
+diff --git a/bridge/stt/local-cli.ts b/bridge/stt/local-cli.ts
+index b8af180..ee6b8dc 100644
+--- a/bridge/stt/local-cli.ts
++++ b/bridge/stt/local-cli.ts
+@@ -154,6 +154,12 @@ export function createLocalCliSttProvider(
+   return {
+     id: settings.provider,
+ 
++    /**
++     * What the phone must upload. `wav-16k` is what a WAV-only command needs: the phone converts
++     * its recording to a 16 kHz mono WAV before sending it, exactly as it does for `whistle`.
++     */
++    input: settings.input,
++
+     /**
+      * Whether the command is there to run: a regular, executable file (see {@link commandFileProblem}).
+      * One `stat` and one `access`, or one PATH walk first, which is the cost of the mtime check the
+diff --git a/cli/stt.ts b/cli/stt.ts
+index 5e4b4e8..4a2ee2b 100644
+--- a/cli/stt.ts
++++ b/cli/stt.ts
+@@ -138,7 +138,7 @@ const SETUP_USAGE = [
+   "                        [--url <base>] [--model <name>] [--key <api-key>]",
+   "                        [--lang <iso-639-1>]                                (openai-compatible)",
+   "                        [--codex-bin <path>] [--accept-risk]                (codex)",
+-  "                        [--command <path>] [--args <list>]                  (local-cli)",
++  "                        [--command <path>] [--args <list>] [--input wav-16k]  (local-cli)",
+ ];
+ 
+ /**
+@@ -490,6 +490,22 @@ async function setupLocalCli(
+     return null;
+   }
+ 
++  const rawInput = await ask(deps, flags.input, {
++    lead: [
++      "What the phone uploads: the recording as it is (the default), or `wav-16k` for a command that",
++      "reads a 16 kHz mono WAV only — the phone then converts its recording before sending it.",
++    ],
++    question: "input [all containers]: ",
++    missing: "the input — `collie stt setup --input wav-16k` (omit it to take the recordings as they are)",
++    optional: true,
++  });
++  if (rawInput === null) return null;
++  const input = rawInput === "" ? undefined : rawInput.trim();
++  if (input !== undefined && input !== "wav-16k") {
++    deps.io.err('error: --input must be "wav-16k", or omitted. Nothing was written.');
++    return null;
++  }
++
+   deps.io.out("");
+   deps.io.out("  Collie will run this as the bridge's own user, once per dictation:");
+   deps.io.out(`    ${[command, ...args].join(" ")} <recording>`);
+@@ -497,6 +513,7 @@ async function setupLocalCli(
+   const document: RawSettings = { provider: "local-cli", command };
+   // Absent rather than `[]`, the same rule as every other optional field in this file.
+   if (args.length > 0) document.args = args;
++  if (input !== undefined) document.input = "wav-16k";
+   return document;
+ }
+ 
+-- 
+2.52.0.windows.1
+

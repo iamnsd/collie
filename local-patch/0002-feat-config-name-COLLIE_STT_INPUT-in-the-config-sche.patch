@@ -1,0 +1,31 @@
+From 21380fc20eae551c3480912f920c22669e9ea048 Mon Sep 17 00:00:00 2001
+From: iamnsd <13327894+iamnsd@users.noreply.github.com>
+Date: Wed, 4 Nov 2026 12:16:10 +0500
+Subject: [PATCH 2/2] feat(config): name COLLIE_STT_INPUT in the config schema
+
+---
+ bridge/config-schema.ts | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/bridge/config-schema.ts b/bridge/config-schema.ts
+index 694d584..defac90 100644
+--- a/bridge/config-schema.ts
++++ b/bridge/config-schema.ts
+@@ -957,6 +957,14 @@ export const CONFIG_SETTINGS: readonly ConfigSetting[] = [
+     default: "",
+     doc: "The command the local-cli provider runs, an absolute path or a name on PATH.",
+   },
++  {
++    key: "stt_input",
++    env: "COLLIE_STT_INPUT",
++    section: "stt",
++    kind: "string",
++    default: "",
++    doc: "What the phone uploads to local-cli: empty takes recordings as they are, wav-16k converts them to 16 kHz WAV first.",
++  },
+ ];
+ 
+ /** Every environment name the table answers to, aliases included. Built once. */
+-- 
+2.52.0.windows.1
+
