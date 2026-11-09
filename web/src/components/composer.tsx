@@ -2946,7 +2946,17 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         <div
           data-slot="composer-box"
           className={cn(
-            "relative flex items-end gap-1 rounded-xl border border-input bg-background p-1 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring",
+            "relative flex gap-1 rounded-xl border border-input bg-background p-1 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring",
+            // `items-end` pins both buttons to the bottom edge while a long draft grows the
+            // field upward to its cap, which is where a thumb already is. But an EMPTY field
+            // can grow taller than the 36px buttons too: Android Chrome multiplies the system
+            // font scale onto every font size, and the draft's line box then outgrows the
+            // fixed-px row (the design's 16px x 1.5 + 12px = 36px holds only unscaled). The
+            // hint floats above the icons and the row reads as coming apart. An empty box has
+            // no last line to hug, so it centres; the moment words arrive, the bottom edge wins.
+            (direct.active ? direct.value : input) === "" && attachments.length === 0
+              ? "items-center"
+              : "items-end",
             // `hand="left"`: the whole row runs mirrored, so Send stands on the box's left edge, then
             // Attach, then the field. The DOM order is untouched, so the tab and reading order are
             // too. With chips, `flex-wrap` still stacks the chip strip ABOVE the row.
