@@ -7,6 +7,7 @@
 
 import { lineText, type Block, type StyledLine } from "../blocks";
 import { adapterFor, hasBlockGrammar } from "./registry";
+import { trimDshComposerChrome } from "./dsh/chrome";
 import { unreadDialogSignature, type DetectorVerdict } from "./unread-dialog-model";
 import type { DialogDetector, HarnessAdapter } from "./types";
 import {
@@ -36,7 +37,13 @@ export function buildBlocks(
   // `grammars: false` is the raw-terminal pref: no adapter runs, so no chrome is stripped and no
   // dialog is lifted, but a native-mirror agent still keeps its display passes below.
   const adapter = ctx?.grammars === false ? undefined : adapterFor(ctx?.agent);
-  const blocks = adapter?.buildBlocks(lines) ?? [{ kind: "raw", lines }];
+  // dsh-tui has no adapter on purpose — registering one would move the reply path off the one-shot
+  // sends every non-grammar pane uses. Its composer frame and the usage block under it are still
+  // display chrome Collie's own composer supersedes, so they come off the raw tail: display-only,
+  // exact agent string, fail-open. The raw-terminal pref (`grammars: false`) asks for every row,
+  // so the trim stands down there.
+  const rawLines = ctx?.agent === "dsh-tui" && ctx?.grammars !== false ? trimDshComposerChrome(lines) : lines;
+  const blocks = adapter?.buildBlocks(lines) ?? [{ kind: "raw", lines: rawLines }];
   // The unread-dialog post-pass runs LAST, over the DECORATED blocks. The display passes only ever
   // touch raw blocks, so running the card first would leave every Muse card showing an un-trimmed,
   // un-marked mirror — the card renders the region itself, and a native-mirror agent's region has to
