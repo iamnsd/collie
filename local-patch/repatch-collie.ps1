@@ -37,7 +37,7 @@ if (-not (Test-Path $officialBin)) {
 # 2. branch for this version: create + apply patches, or reuse an existing one
 git fetch --depth 1 origin "refs/tags/$Tag"
 git checkout -B "local-$ver" FETCH_HEAD
-$patches = @((Get-ChildItem (Join-Path $repo 'local-patch\*.patch')).FullName)
+$patches = @((Get-ChildItem (Join-Path $env:USERPROFILE 'Documents\collie-local-patch\*.patch')).FullName)
 git am --abort 2>$null | Out-Null
 git am $patches
 "patches applied: $($patches.Count)"
@@ -64,3 +64,5 @@ if ($out -match 'webm and mp4 are skipped') {
 } else {
   throw 'stt test did not report the wav-16k note — check collie stt status / .env'
 }
+
+

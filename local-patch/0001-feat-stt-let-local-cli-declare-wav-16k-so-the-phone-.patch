@@ -1,4 +1,4 @@
-From cbd8ea02d79e92d13902d8d7744394f2ccdca6cb Mon Sep 17 00:00:00 2001
+From 6b1b73735d8d06563e60215818c5d1e327dbdf11 Mon Sep 17 00:00:00 2001
 From: Collie Fork <collie-fork@localhost>
 Date: Tue, 3 Nov 2026 12:19:11 +0500
 Subject: [PATCH 1/2] feat(stt): let local-cli declare wav-16k so the phone
